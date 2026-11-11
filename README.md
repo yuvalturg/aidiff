@@ -4,6 +4,10 @@
 
 It follows the Agent Skills format and can be used by Codex, Claude Code, and other compatible agents.
 
+![AIDiff HTML report](assets/aidiff-report.png)
+
+*Example generated HTML report with Git-style diff colors and side-by-side explanations.*
+
 ## Layout
 
 ```text
