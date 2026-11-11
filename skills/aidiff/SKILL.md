@@ -2,7 +2,7 @@
 name: aidiff
 description: Explain Git working-tree changes, commits, SHAs, branches and commit ranges with side-by-side diffs and AI explanations. Use for understanding what changed, why, and its impact.
 metadata:
-  version: "0.13.0"
+  version: "0.14.3"
 ---
 
 # AIDiff
@@ -14,6 +14,7 @@ EXPLAIN code changes, not simply find defects.
 
 Interpret the arguments following $aidiff:
 
+- `--open`: open the generated HTML report after creating it
 - No arguments: all tracked uncommitted changes
 - --unstaged: unstaged changes
 - --cached: staged changes
@@ -23,6 +24,9 @@ Interpret the arguments following $aidiff:
 - <branch>: compare branch merge-base against HEAD
 - A..B: diff from A to B
 - A...B: diff from merge-base(A,B) to B
+
+`--open` is a presentation option and may be combined with any comparison
+selector, for example `--open`, `--open --cached`, or `--open A...B`.
 
 If arguments are ambiguous, request clarification.
 
@@ -88,9 +92,13 @@ Start with:
 - Files changed
 - Overall purpose of the changes
 
-The primary artifact is the actual unified diff with an explanation beside it,
-not a prose summary that merely describes the diff. For every changed file and
-every hunk, render a two-column Markdown table:
+The primary artifact is the generated HTML report. Keep the terminal response
+concise by default: report the comparison, changed files, overall synthesis,
+risks, and the exact HTML report path, but do not reproduce the unified diff in
+the terminal response unless the user explicitly asks for terminal diff output.
+The HTML report must contain the actual unified diff with an explanation beside
+it. For every changed file and every hunk, render a two-column Markdown table
+in the report:
 
 | DIFF | AI EXPLANATION |
 |------|----------------|
@@ -113,22 +121,48 @@ Rules:
   for that hunk, preserving the same side-by-side ordering and exact diff
   content.
 
-After the complete diff tables, include the higher-level WHAT, WHY, IMPACT,
-RISKS, and RELATIONSHIPS synthesis. The synthesis supplements the diff; it
-must not substitute for displaying it.
+After the complete diff tables in the report, include the higher-level WHAT,
+WHY, IMPACT, RISKS, and RELATIONSHIPS synthesis. The synthesis supplements the
+diff; it must not substitute for displaying it in the HTML report.
 
-For large comparisons, also write a temporary terminal-friendly plain-text
-report outside the repository (for example `/tmp/aidiff-<repo>.html`). Make it
+Always write a temporary terminal-friendly HTML report outside the repository.
+Create a genuinely unique temporary file with `mktemp`, for example:
+
+```bash
+report_file="$(mktemp /tmp/aidiff-XXXXXX.html)"
+```
+
+Do not use a fixed filename, a repository filename, or a predictable
+`/tmp/aidiff-<repo>.html` path. Make the report
 self-contained with inline CSS and a polished two-column layout. Put the exact
 diff on the left and group related hunk explanations together in one coherent
 explanation panel per file or logical change unit on the right; do not repeat
 the same explanation for every hunk. Preserve file and hunk order, diff
 markers, whitespace, and all changed lines. Keep the report readable with
 syntax coloring, sticky file headers, wrapping, and clear visual separation
-between hunks. Use distinct, high-contrast addition/deletion colors and keep
-context lines visually neutral, like a conventional diff viewer. Link the
-temporary report in the response. Do not write reports, artifacts, or other
-generated files into the repository.
+between hunks. Preserve Git diff colors in the HTML: color added lines with a
+high-contrast green treatment, removed lines with a high-contrast red
+treatment, hunk headers with a distinct header color, and leave context lines
+visually neutral. Apply these colors to complete rendered diff lines, not just
+their prefixes, while preserving the exact diff text. Use a dark theme for the
+entire report: a dark page background,
+dark panels, light readable text, and a dark code surface. Use distinct,
+high-contrast addition/deletion colors that remain legible on the dark theme,
+and keep context lines visually neutral, like a conventional diff viewer.
+Immediately after creating the report, print its exact path as a standalone
+labeled line:
+
+`HTML report: /tmp/aidiff-XXXXXX.html`
+
+The final response must repeat that literal filename in plain text and may also
+include it as a clickable link. Do not hide the filename only behind link text.
+
+When `--open` is present, open the generated report after writing it. Use the
+host's standard opener (`xdg-open` on Linux, `open` on macOS, or the equivalent
+available on the host), launch it asynchronously, and do not open anything
+unless the user explicitly supplied `--open`.
+
+Do not write reports, artifacts, or other generated files into the repository.
 
 Wrap long untracked-file paths inside the untracked-files panel so they never
 expand the layout or become clipped.
